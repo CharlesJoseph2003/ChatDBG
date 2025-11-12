@@ -12,20 +12,16 @@ by [Emery Berger](https://emeryberger.com), [Stephen Freund](https://www.cs.will
 
 [![Watch the talk!](https://img.youtube.com/vi/XsFGMKKaYSo/0.jpg)](https://www.youtube.com/watch?v=XsFGMKKaYSo)
 
-ChatDBG is an AI-based debugging assistant for C/C++/Python/Rust code that integrates large language models into a standard debugger (`pdb`, `lldb`, `gdb`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
+ChatDBG is an AI-based debugging assistant for Python code that integrates large language models into the standard Python debugger (`pdb`) to help debug your code. With ChatDBG, you can engage in a dialog with your debugger, asking open-ended questions about your program, like `why is x null?`. ChatDBG will _take the wheel_ and steer the debugger to answer your queries. ChatDBG can provide error diagnoses and suggest fixes.
 
 As far as we are aware, ChatDBG is the _first_ debugger to automatically perform root cause analysis and to provide suggested fixes.
 
 **Watch ChatDBG in action!**
-| LLDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | GDB on [test-overflow.cpp](https://github.com/plasma-umass/ChatDBG/blob/main/samples/cpp/test-overflow.cpp) | Pdb on [bootstrap.py](https://github.com/plasma-umass/ChatDBG/blob/main/samples/python/bootstrap.py) |
-|:-------------------------:|:-------------------------:|:-------------------------:|
-| <a href="https://asciinema.org/a/RsAGFFmsicIvMW8xgvPP6PW2f" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/lldb.svg" /></a>| <a href="https://asciinema.org/a/bMWOyyrh7WXWsTCFboyKpqwTq" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/gdb.svg" /></a>|<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/pdb.svg" /></a>|
+
+<a href="https://asciinema.org/a/qulxiJTqwVRJPaMZ1hcBs6Clu" target="_blank"><img src="https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/media/pdb.svg" /></a>
 
 For technical details and a complete evaluation, see our FSE'25 paper, [_ChatDBG: An AI-Powered Debugging Assistant_](https://dl.acm.org/doi/10.1145/3729355) ([PDF](https://raw.githubusercontent.com/plasma-umass/ChatDBG/main/ChatDBG.pdf)).
 
-> [!NOTE]
->
-> ChatDBG for `pdb`, `lldb`, and `gdb` are feature-complete; we are currently backporting features for these debuggers into the other debuggers.
 
 ## Installation
 
@@ -39,66 +35,11 @@ For technical details and a complete evaluation, see our FSE'25 paper, [_ChatDBG
 > export OPENAI_API_KEY=<your-api-key>
 > ```
 
-Install ChatDBG using `pip` (you need to do this whether you are debugging Python, C, or C++ code):
+Install ChatDBG using `pip`:
 
 ```bash
 python3 -m pip install chatdbg
 ```
-
-If you are using ChatDBG to debug Python programs, you are done. If you want to use ChatDBG to debug native code with `gdb` or `lldb`, follow the installation instructions below.
-
-### Installing as an `lldb` extension
-
-<details>
-<summary>
-<B><TT>lldb</TT> installation instructions</B>
-</summary>
-
-Install ChatDBG into the `lldb` debugger by running the following command:
-
-#### Linux
-
-```bash
-python3 -m pip install ChatDBG
-python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
-```
-
-If you encounter an error, you may be using an older version of LLVM. Update to the latest version as follows:
-
-```
-sudo apt install -y lsb-release wget software-properties-common gnupg
-curl -sSf https://apt.llvm.org/llvm.sh | sudo bash -s -- 18 all
-# LLDB now available as `lldb-18`.
-```
-
-#### Mac
-
-```bash
-xcrun python3 -m pip install ChatDBG
-xcrun python3 -c 'import chatdbg; print(f"command script import {chatdbg.__path__[0]}/chatdbg_lldb.py")' >> ~/.lldbinit
-```
-
-This will install ChatDBG as an LLVM extension.
-
-</details>
-
-### Installing as a `gdb` extension
-
-<details>
-<summary>
-<B><TT>gdb</TT> installation instructions</B>
-</summary>
-
-Install ChatDBG into the `gdb` debugger by running the following command:
-
-```bash
-python3 -m pip install ChatDBG
-python3 -c 'import chatdbg; print(f"source {chatdbg.__path__[0]}/chatdbg_gdb.py")' >> ~/.gdbinit
-```
-
-This will install ChatDBG as a GDB extension.
-
-</details>
 
 ## Usage
 
@@ -142,115 +83,12 @@ Inside Jupyter, run your notebook with the [ipyflow kernel](https://github.com/i
 %pdb
 ```
 
-### Debugging native code (C, C++, or Rust with <TT>lldb</TT> / <TT>gdb</TT>)
 
-To use ChatDBG with `lldb` or `gdb`, just run native code (compiled with `-g` for debugging symbols) with your choice of debugger; when it crashes, ask `why`. This also works for post mortem debugging (when you load a core with the `-c` option).
-
-The native debuggers work slightly differently than Pdb. After the debugger responds to your question, you will enter into ChatDBG's command loop, as indicated by the `(ChatDBG chatting)` prompt. You may continue issuing debugging commands and you may send additional messages to the LLM by starting those messages with "chat". When you are done, type `quit` to return to the debugger's main command loop.
+### Example
 
 <details>
 <summary>
-<B>Debugging Rust programs</B>
-</summary>
-
-To use ChatDBG with Rust, you need to do two steps: modify your
-`Cargo.toml` file and add one line to your source program.
-
-1. Add this to your `Cargo.toml` file:
-
-```toml
-[dependencies]
-chatdbg = "0.6.2"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-```
-
-2. In your program, apply the `#[chatdbg::main]` attribute to your `main`
-   function:
-
-```rust
-#[chatdbg::main]
-fn main() {
-```
-
-Now you can debug your Rust code with `gdb` or `lldb`.
-
-</details>
-
-### Examples
-
-<details>
-<summary>
-<B>ChatDBG example in <TT>lldb</TT></B>
-</summary>
-
-```gdb
-(ChatDBG lldb) run
-Process 85494 launched: '/Users/emery/git/ChatDBG/test/a.out' (arm64)
-TEST 1
-TEST -422761288
-TEST 0
-TEST 0
-TEST 0
-TEST 0
-TEST 0
-TEST 0
-Process 85494 stopped
-* thread #1, queue = 'com.apple.main-thread', stop reason = EXC_BAD_ACCESS (code=1, address=0x100056200)
-    frame #0: 0x0000000100002f64 a.out`foo(n=8, b=1) at test.cpp:7:22
-   4     int x[] = { 1, 2, 3, 4, 5 };
-   5
-   6     void foo(int n, float b) {
--> 7       cout << "TEST " << x[n * 10000] << endl;
-   8     }
-   9
-   10    int main()
-Target 0: (a.out) stopped.
-```
-
-Ask `why` to have ChatDBG provide a helpful explanation why this program failed, and suggest a fix:
-
-````gdb
-(ChatDBG lldb) why
-The root cause of this error is accessing an index of the array `x`
-that is out of bounds. In `foo()`, the index is calculated as `n *
-10000`, which can be much larger than the size of the array `x` (which
-is only 5 elements). In the given trace, the program is trying to
-access the memory address `0x100056200`, which is outside of the range
-of allocated memory for the array `x`.
-
-To fix this error, we need to ensure that the index is within the
-bounds of the array. One way to do this is to check the value of `n`
-before calculating the index, and ensure that it is less than the size
-of the array divided by the size of the element. For example, we can
-modify `foo()` as follows:
-
-    ```
-    void foo(int n, float b) {
-      if (n < 0 || n >= sizeof(x)/sizeof(x[0])) {
-        cout << "ERROR: Invalid index" << endl;
-        return;
-      }
-      cout << "TEST " << x[n] << endl;
-    }
-    ```
-
-This code checks if `n` is within the valid range, and prints an error
-message if it is not. If `n` is within the range, the function prints
-the value of the element at index `n` of `x`. With this modification,
-the program will avoid accessing memory outside the bounds of the
-array, and will print the expected output for valid indices.
-````
-
-</details>
-
-<details>
-<summary>
-<B>ChatDBG example in Python (<TT>pdb</TT>)</B>
+<B>ChatDBG example in Python</B>
 </summary>
 
 ```python

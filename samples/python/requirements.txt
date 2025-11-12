@@ -1,2 +1,0 @@
-# packages necessary for the test files
-datascience
