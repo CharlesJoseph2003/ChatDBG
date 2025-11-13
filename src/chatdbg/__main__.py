@@ -1,11 +1,31 @@
 import sys
+import warnings
 from getopt import GetoptError
+from pathlib import Path
+
+# Suppress Pydantic serialization warnings from LiteLLM
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+# Load environment variables from .env file BEFORE any other imports
+try:
+    from dotenv import load_dotenv
+    # Look for .env in current directory or parent directories
+    load_dotenv(dotenv_path=Path.cwd() / '.env', override=True)
+except ImportError:
+    pass  # dotenv not installed, skip
 
 import ipdb
 
 from chatdbg.chatdbg_pdb import ChatDBG
 from chatdbg.util.config import chatdbg_config
-from chatdbg.util.help import print_help
+
+
+def print_help():
+    """Print help message for ChatDBG."""
+    print("ChatDBG - AI-assisted debugging")
+    print("\nUsage: chatdbg [options] <script> [script arguments]")
+    print("\nOptions:")
+    print(chatdbg_config.user_flags_help())
 
 
 def main() -> None:

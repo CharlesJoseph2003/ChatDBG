@@ -100,6 +100,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._code_theme = "default"
         # used to keep track of streaming
         self._streamed = ""
+        self._live = None
 
         self._console = self._make_console(out)
 
@@ -154,6 +155,7 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._live.update(m)
 
     def on_begin_stream(self):
+        # Always reset at the start of streaming
         self._streamed = ""
 
     def on_stream_delta(self, text):
@@ -165,11 +167,16 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def on_end_stream(self):
         if self._streamed != "":
             self._live.stop()
+            self._live = None  # Mark streaming as complete
+            # Don't reset _streamed here - let on_response check it
 
     def on_response(self, text):
-        if self._streamed == "" and text != None:
+        # Only print if we haven't already streamed this content
+        had_streamed = self._streamed != ""
+        if not had_streamed and text != None:
             m = self._wrap_in_panel(Markdown(text, code_theme=self._code_theme))
             self._print(m, end="\n")
+        # Always reset streamed content after response is handled
         self._streamed = ""
 
     def on_function_call(self, call, result):

@@ -11,8 +11,6 @@ from chatdbg.util.printer import ChatDBGPrinter
 from io import TextIOWrapper
 from typing import Union
 
-from chatdbg.util.jupyter import ChatDBGJupyterPrinter
-
 
 def _chatdbg_get_env(
     option_name: str, default_value: Union[bool, int, str]
@@ -181,7 +179,8 @@ class ChatDBGConfig(Configurable):
         elif format == "text":
             return ChatDBGPrinter(stdout, prompt, prefix, width)
         elif format == "jupyter":
-            return ChatDBGJupyterPrinter(prompt, prefix, width)
+            print("*** Jupyter format not available. Defaulting to 'text'", file=stdout)
+            return ChatDBGPrinter(stdout, prompt, prefix, width)
         else:
             print("*** Unknown format '{format}'.  Defaulting to 'text'", file=stdout)
             return ChatDBGPrinter(stdout, prompt, prefix, width)

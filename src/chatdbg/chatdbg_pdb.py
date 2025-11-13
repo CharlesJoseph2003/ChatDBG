@@ -27,7 +27,6 @@ from chatdbg.pdb_util.capture import CaptureInput, CaptureOutput
 from chatdbg.pdb_util.locals import print_locals
 from chatdbg.util.text import strip_ansi, truncate_proportionally
 from chatdbg.util.config import chatdbg_config
-from chatdbg.util.log import ChatDBGLog
 from chatdbg.util.history import CommandHistory
 from chatdbg.util.exit_message import chatdbg_was_called, print_exit_message
 
@@ -102,11 +101,7 @@ class ChatDBG(ChatDBGSuper):
             if "site-packages" in path or "dist-packages" in path
         ]
 
-        self._log = ChatDBGLog(
-            log_filename=chatdbg_config.log,
-            config=chatdbg_config.to_json(),
-            capture_streams=True,
-        )
+        self._log = None  # Logging disabled
 
     def _close_assistant(self):
         if self._assistant != None:
@@ -229,7 +224,8 @@ class ChatDBG(ChatDBGSuper):
                 self.stdout = hist_file.getfile()
                 output = strip_ansi(hist_file.getvalue())
                 if not self.was_chat_or_renew:
-                    self._log.on_function_call(line, output)
+                    if self._log:
+                        self._log.on_function_call(line, output)
                     if line.split()[0] not in [
                         "hist",
                         "test_prompt",
@@ -630,17 +626,20 @@ class ChatDBG(ChatDBGSuper):
         instruction_prompt = self._initial_prompt_instructions()
         functions = self._supported_functions()
 
+        listeners = [
+            chatdbg_config.make_printer(
+                self.stdout, self.prompt, self._chat_prefix, self._text_width
+            )
+        ]
+        if self._log:
+            listeners.append(self._log)
+
         self._assistant = Assistant(
             instruction_prompt,
             model=chatdbg_config.model,
             functions=functions,
             max_call_response_tokens=8192,
-            listeners=[
-                chatdbg_config.make_printer(
-                    self.stdout, self.prompt, self._chat_prefix, self._text_width
-                ),
-                self._log,
-            ],
+            listeners=listeners,
         )
 
     ### Callbacks for LLM
