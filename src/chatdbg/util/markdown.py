@@ -100,7 +100,6 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
         self._code_theme = "default"
         # used to keep track of streaming
         self._streamed = ""
-        self._live = None
 
         self._console = self._make_console(out)
 
@@ -149,34 +148,26 @@ class ChatDBGMarkdownPrinter(BaseAssistantListener):
     def on_error(self, text):
         self._message(text, "error")
 
-    def _stream_append(self, text):
-        self._streamed += text
-        m = self._wrap_in_panel(Markdown(self._streamed, code_theme=self._code_theme))
-        self._live.update(m)
-
     def on_begin_stream(self):
-        # Always reset at the start of streaming
+        # Reset at the start of streaming
         self._streamed = ""
 
     def on_stream_delta(self, text):
-        if self._streamed == "":
-            self._live = Live(vertical_overflow="visible", console=self._console)
-            self._live.start(True)
-        self._stream_append(text)
+        # Silently collect streamed text without displaying
+        self._streamed += text
 
     def on_end_stream(self):
+        # Print the complete streamed message once
         if self._streamed != "":
-            self._live.stop()
-            self._live = None  # Mark streaming as complete
-            # Don't reset _streamed here - let on_response check it
+            m = self._wrap_in_panel(Markdown(self._streamed, code_theme=self._code_theme))
+            self._print(m, end="\n")
 
     def on_response(self, text):
-        # Only print if we haven't already streamed this content
-        had_streamed = self._streamed != ""
-        if not had_streamed and text != None:
+        # Only print if we didn't stream (fallback for non-streaming responses)
+        if self._streamed == "" and text != None:
             m = self._wrap_in_panel(Markdown(text, code_theme=self._code_theme))
             self._print(m, end="\n")
-        # Always reset streamed content after response is handled
+        # Reset for next iteration
         self._streamed = ""
 
     def on_function_call(self, call, result):
