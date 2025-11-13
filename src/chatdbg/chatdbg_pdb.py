@@ -614,7 +614,7 @@ class ChatDBG(ChatDBGSuper):
 
     def _supported_functions(self):
         if chatdbg_config.take_the_wheel:
-            functions = [self.debug, self.info]
+            functions = [self.debug, self.info, self.stack_trace]
             if self._supports_flow:
                 functions += [self.slice]
         else:
@@ -712,3 +712,30 @@ class ChatDBG(ChatDBGSuper):
         command = f"slice {name}"
         result = self._capture_onecmd(command)
         return command, truncate_proportionally(result, top_proportion=0.5)
+
+    def stack_trace(self, show_locals=True):
+        """
+        {
+            "name": "stack_trace",
+            "description": "Call the `stack_trace` function to display the complete stack trace with local variable values at each stack frame. This shows the full execution path from the initial call to the error location, including the state of all variables in each function. Use this when you need to see variable values across multiple frames or understand the complete call hierarchy.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "show_locals": {
+                        "type": "boolean",
+                        "description": "Whether to show local variables in each frame (default: true)"
+                    }
+                }
+            }
+        }
+        """
+        from io import StringIO
+        old_stdout = self.stdout
+        buf = StringIO()
+        self.stdout = buf
+        try:
+            self.print_stack_trace(context=self.context, locals=show_locals)
+        finally:
+            self.stdout = old_stdout
+        result = strip_ansi(buf.getvalue())
+        return "stack_trace()", result
